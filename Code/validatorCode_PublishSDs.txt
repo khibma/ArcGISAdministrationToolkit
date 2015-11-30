@@ -1,0 +1,56 @@
+import arcpy, os, json, urllib2
+class ToolValidator(object):
+  """Class for validating a tool's parameter values and controlling
+  the behavior of the tool's dialog."""
+
+  def __init__(self):
+    """Setup arcpy and the list of tool parameters."""
+    self.params = arcpy.GetParameterInfo()
+
+  def initializeParameters(self):
+    """Refine the properties of a tool's parameters.  This method is
+    called when the tool is opened."""
+    return
+
+  def updateParameters(self):
+    """Modify the values and properties of parameters before internal
+    validation is performed.  This method is called whenever a parmater
+    has been changed."""
+    
+    sdList = []
+    sdDir = self.params[1].value
+    
+    # Build up a list of SD files from the directory
+    if sdDir or self.params[1].altered:
+      for root, dirs, files in os.walk(str(sdDir)):
+        for name in files:
+            if os.path.basename(name).endswith(".sd"):                                
+                sdList.append(os.path.join(root, name))
+      if len(sdList) > 0:
+        self.params[2].value = sdList    
+        
+    folderFilter = self.params[5].filter
+    if self.params[4].value or self.params[4].altered:
+      
+      #foldersURL = "http://{}:{}/arcgis/rest/services/?f=pjson".format(server, port) 
+      foldersURL = self.params[4].value + "/services/?f=pjson"
+      status = json.loads(urllib2.urlopen(foldersURL, '').read())       
+      folders = status["folders"]
+      
+      folderFilter.list = folders
+    
+      if not self.params[5].altered:
+        self.params[5].value = folderFilter.list[0]
+      
+    return
+
+  def updateMessages(self):
+    """Modify the messages created by internal validation for each tool
+    parameter.  This method is called after internal validation."""
+    
+    self.params[1].clearMessage()
+    
+    if (self.params[1].value) and (self.params[2].value == None):
+      self.params[1].setErrorMessage("No SD files found in this directory")
+    return
+

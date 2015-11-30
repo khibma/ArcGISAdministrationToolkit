@@ -1,0 +1,102 @@
+import arcpy, json, urllib, urllib2
+
+class ToolValidator(object):
+  """Class for validating a tool's parameter values and controlling
+  the behavior of the tool's dialog.""" 
+  
+  def __init__(self):
+    """Setup arcpy and the list of tool parameters."""
+    self.params = arcpy.GetParameterInfo()
+
+  def initializeParameters(self):
+    """Refine the properties of a tool's parameters.  This method is
+    called when the tool is opened."""
+    return
+
+  def updateParameters(self):
+    """Modify the values and properties of parameters before internal
+    validation is performed.  This method is called whenever a parmater
+    has been changed."""  
+
+    #build up list of services
+    if self.params[0].value and self.params[1].value and self.params[2].value and self.params[3].value:       
+      serverList = getServiceList(self.params[0].value, self.params[1].value, self.params[2].value, self.params[3].value)
+      
+      # put the services into the value list
+      if len(serverList) > 0:
+        self.params[5].filter.list = serverList         
+    
+    return
+
+  def updateMessages(self):
+    """Modify the messages created by internal validation for each tool
+    parameter.  This method is called after internal validation."""    
+    
+    self.params[0].clearMessage()
+    if self.params[0].value and self.params[1].value and self.params[2].value and self.params[3].value and (self.params[5].value == ''):    #(self.params[5].value == None):    
+        self.params[0].setErrorMessage("No services found. Check the hostname, port or credentials")  
+    
+    if self.params[5].value:
+      self.params[0].clearMessage()
+    return  
+
+  
+def gentoken(server, port, adminUser, adminPass, expiration=60):
+    #Re-usable function to get a token required for Admin changes
+    
+    query_dict = {'username':   adminUser,
+                  'password':   adminPass,
+                  'expiration': str(expiration),
+                  'client':     'requestip'}
+    
+    query_string = urllib.urlencode(query_dict)
+    url = "http://{}:{}/arcgis/admin/generateToken".format(server, port)
+    
+    token = json.loads(urllib.urlopen(url + "?f=json", query_string).read())
+        
+    if "token" not in token:
+        print token['messages']
+        exit()
+    else:
+        # Return the token to the function which called for it
+        return token['token']  
+
+
+def getServiceList(server, port,adminUser, adminPass, token=None):
+    ''' Function to get all services
+    Requires Admin user/password, as well as server and port (necessary to construct token if one does not exist).
+    If a token exists, you can pass one in for use.  
+    Note: Will not return any services in the Utilities or System folder
+    '''    
+    
+    
+    if token is None:    
+        token = gentoken(server, port, adminUser, adminPass)    
+    
+    services = []    
+    folder = ''    
+    URL = "http://{}:{}/arcgis/admin/services{}?f=pjson&token={}".format(server, port, folder, token)    
+
+    serviceList = json.loads(urllib2.urlopen(URL).read())
+
+    # Build up list of services at the root level
+    for single in serviceList["services"]:
+        services.append(single['serviceName'] + '.' + single['type'])
+     
+    # Build up list of folders and remove the System and Utilities folder (we dont want anyone playing with them)
+    folderList = serviceList["folders"]
+    #folderList.remove("Utilities")             
+    #folderList.remove("System")
+        
+    if len(folderList) > 0:
+        for folder in folderList:                                              
+            URL = "http://{}:{}/arcgis/admin/services/{}?f=pjson&token={}".format(server, port, folder, token)    
+            fList = json.loads(urllib2.urlopen(URL).read())
+            
+            for single in fList["services"]:
+                services.append(folder + "//" + single['serviceName'] + '.' + single['type'])                
+        
+    return services   
+  
+
+

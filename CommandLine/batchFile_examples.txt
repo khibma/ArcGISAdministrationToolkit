@@ -1,0 +1,7 @@
+agsAdmin.exe SERVER 6080 admin admin list
+
+agsAdmin.exe SERVER 6080 admin admin stop SampleWorldCities.MapServer
+
+agsAdmin.exe SERVER 6080 admin admin stop all
+
+agsAdmin.exe SERVER 6080 admin admin start all
