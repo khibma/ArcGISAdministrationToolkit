@@ -24,6 +24,8 @@ http://resources.arcgis.com/en/help/arcgis-rest-api/index.html#/The_ArcGIS_REST_
 # Required imports
 import json
 import datetime
+from io import BytesIO
+import gzip
 try:
     import urllib.parse as parse
     from urllib.request import urlopen as urlopen
@@ -347,7 +349,7 @@ class ConnHandler(object):
                 for single in fList["services"]:
                     services.append(folder + "//" + single['serviceName'] + '.' + single['type'])
 
-        print (services)
+        #print (services)
         return services
 
 
@@ -357,10 +359,7 @@ class ConnHandler(object):
         service = String of existing service with type seperated by a period <serviceName>.<serviceType>
         '''
 
-        report = ''
-        URL = "http://{}:{}/arcgis/admin/".format(server, port)
-
-        report += "*-----------------------------------------------*\n\n"
+        report = "*-----------------------------------------------*\n\n"
 
         # Get Cluster and Machine info
         cluster_url = "{}/clusters".format(self.baseURL)
