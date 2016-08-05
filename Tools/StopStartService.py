@@ -26,13 +26,15 @@ def stopStartServices(handler, stopStart, serviceList):
 
     #modify the services(s)
     for service in services:
+        service = service.strip("--[STOPPED]")
+        service = service.strip("--[STARTED]")
         op_service_url = "{}/services/{}/{}".format(handler.baseURL, service, stopStart)
         status = handler.url_request(op_service_url, req_type='POST')
 
         if 'success' in status.values():
             arcpy.AddMessage(str(service) + " ==> " + str(stopStart))
         else:
-            arcpy.AddWarning(status)
+            arcpy.AddWarning(str(status))
 
     return
 

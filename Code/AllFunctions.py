@@ -319,15 +319,12 @@ class ConnHandler(object):
         return
 
 
-    def getServiceList(self):
+    def getServiceList(self, folderList=""):
         ''' Function to get all services
-        Requires Admin user/password, as well as server and port (necessary to construct token if one does not exist).
-        If a token exists, you can pass one in for use.
-        Note: Will not return any services in the Utilities or System folder
+            Note: Will not return any services in the Utilities or System folder
         '''
 
         services = []
-        folder = ''
         service_url = "{}/services".format(self.baseURL)
 
         serviceList = self.url_request(service_url)

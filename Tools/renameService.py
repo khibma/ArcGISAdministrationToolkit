@@ -21,12 +21,13 @@ def renameService(handler, service, newName):
     newName = String of new service name
     '''
 
-    #service = urllib.quote(service.encode('utf8'))
+    service = service.strip("--[STOPPED]")
+    service = service.strip("--[STARTED]")
 
     # Check the service name for a folder:
-    if "//" in service:
-        serviceName = service.split('.')[0].split("//")[1]
-        folderName = service.split('.')[0].split("//")[0] + "/"
+    if "/" in service:
+        serviceName = service.split('.')[0].split("/")[1]
+        folderName = service.split('.')[0].split("/")[0] + "/"
     else:
         serviceName = service.split('.')[0]
         folderName = ""
@@ -36,7 +37,7 @@ def renameService(handler, service, newName):
                            "serviceNewName" : newName
                          }
 
-    rename_url = "{}/services/{}renameService".format(handler.baseURL, folderName)
+    rename_url = "{}/services/{}/renameService".format(handler.baseURL, folderName)
     status = handler.url_request(rename_url, renameService_dict, 'POST')
 
 

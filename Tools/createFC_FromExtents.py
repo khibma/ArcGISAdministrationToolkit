@@ -25,7 +25,12 @@ def makeFC_FromExtents(handler, mapService, outputFC):
     Note: Will not return any services in the Utilities or System folder
     '''
 
-    extentURL = "{}/services/{}".format(handler.baseURL.replace("admin", "rest"), mapService.replace( ".", "/"))
+    if "STOPPED" in mapService:
+        arcpy.AddError("Service needs to be running to perform this operation")
+        sys.exit()
+    mapService = mapService.strip("--[STOPPED]")
+    mapService = mapService.strip("--[STARTED]")
+    extentURL = "{}/services/{}".format(handler.baseURL.replace("admin", "rest"), mapService.replace(".", "/"))
     fullExtent = handler.url_request(extentURL, req_type='GET')
 
     if not 'fullExtent' in fullExtent.keys():

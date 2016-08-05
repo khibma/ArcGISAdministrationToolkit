@@ -51,9 +51,8 @@ class connectionHelper(object):
 
         token = self.url_request(url, query_dict, "POST")
 
-        if "token" not in token:
-            print (token['messages'])
-            exit()
+        if not token or "token" not in token:
+            print ("no token: {}".format(token))
         else:
             # Return the token to the function which called for it
             return token['token']
@@ -117,7 +116,7 @@ class connectionHelper(object):
         return json.loads(response_text)
 
 
-    def getServiceList(self, folder=''):
+    def getServiceList(self, folderList=''):
         ''' Function to get all services
         Requires Admin user/password, as well as server and port (necessary to construct token if one does not exist).
         If a token exists, you can pass one in for use.
@@ -128,13 +127,16 @@ class connectionHelper(object):
             self.token = self.gentoken()
 
         services = []
-        URL = "{}://{}:{}/arcgis/admin/services{}?f=pjson&token={}".format(self.http, self.server, self.port, folder, self.token)
+        service_url = "{}/services".format(self.baseURL)
 
-        serviceList = json.loads(urllib2.urlopen(URL).read())
+        serviceList = self.url_request(service_url)
 
         # Build up list of services at the root level
         for single in serviceList["services"]:
-            services.append(single['serviceName'] + '.' + single['type'])
+            statusURL = "{}/services/{}/status".format(self.baseURL, single['serviceName'] + '.' + single['type'])
+            serviceStatus = self.url_request(statusURL, req_type="GET")
+            services.append("{}--[{}]".format(single['serviceName'] + '.' + single['type'],
+                                             serviceStatus['realTimeState']))
 
         # Build up list of folders and remove the System and Utilities folder (we dont want anyone playing with them)
         folderList = serviceList["folders"]
@@ -143,13 +145,18 @@ class connectionHelper(object):
 
         if len(folderList) > 0:
             for folder in folderList:
-                URL = "{}://{}:{}/arcgis/admin/services/{}?f=pjson&token={}".format(self.http, self.server, self.port, folder, self.token)
-                fList = json.loads(urllib2.urlopen(URL).read())
+                URL = "{}/services/{}".format(self.baseURL, folder)
+                fList = self.url_request(URL)
 
                 for single in fList["services"]:
-                    services.append(folder + "//" + single['serviceName'] + '.' + single['type'])
+                    statusURL = "{}/services/{}/{}/status".format(self.baseURL, folder,
+                                                                  single['serviceName'] + '.' + single['type'])
+                    serviceStatus = self.url_request(statusURL, req_type="GET")
+                    services.append("{}/{}--[{}]".format(folder, single['serviceName'] + '.' + single['type'],
+                                                        serviceStatus['realTimeState']))
 
         return services
+
 
 
 class MultipartFormdataEncoder(object):
@@ -217,3 +224,5 @@ class MultipartFormdataEncoder(object):
             body.write(chunk)
         self.content_type["Content-Length"] = str(len(body.getvalue()))
         return self.content_type, body.getvalue()
+
+b = connectionHelper("","","","")
