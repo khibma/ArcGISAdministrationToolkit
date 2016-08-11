@@ -22,24 +22,47 @@ except ImportError:
     from urllib import urlencode as encode
     unicode = str
 
+import ssl
+try:
+    _create_unverified_https_context = ssl._create_unverified_context
+except AttributeError:
+    # Legacy Python that doesn't verify HTTPS certificates by default
+    pass
+else:
+    # Handle target environment that doesn't support HTTPS verification
+    ssl._create_default_https_context = _create_unverified_https_context
+
 
 class connectionHelper(object):
 
     def __init__(self, server, port, username, password):
+        self.token = None
         self.server = server
         self.port = port
-        self.username = username
-        self.password = password
-        self.token = None
-        self.token = self.gentoken(server, port, username, password)
         self.SSL = self.checkSSL()
         self.prefix = 'https' if self.SSL else 'http'
-        if self.prefix == 'https': self.port= 6443
+        self.username = username
+        self.password = password
+
         self.baseURL = "{pre}://{server}:{port}/arcgis/admin".format(pre=self.prefix, server=self.server, port=self.port)
+        self.token = self.gentoken(server, port, username, password)
 
+    def checkSSL(self):
 
-    def gentoken(self, server, port, adminUser, adminPass, expiration=60):
-        #Re-usable function to get a token required for Admin changes
+        sslURL = "http://{}:{}/arcgis/admin/generateToken?f=json".format(self.server, self.port)
+        sslSettings = self.url_request(sslURL, {'f': 'json'}, 'POST')
+        try:
+            if sslSettings['ssl']['supportsSSL']:
+                self.port = sslSettings['ssl']['sslPort']
+                return True
+            else:
+                return False
+        except:
+            print("Error getting SSL setting, using HTTP")
+            return False
+
+    def gentoken(self, adminUser, adminPass, expiration=60):
+        # Not to be called directly. The object will handle getting and setting the token
 
         query_dict = {'username':   adminUser,
                       'password':   adminPass,
@@ -47,28 +70,14 @@ class connectionHelper(object):
                       'client':     'requestip',
                       'f':           'json'}
 
-        url = "http://{}:{}/arcgis/admin/generateToken".format(server, port)
+        url = "{}/generateToken".format(self.baseURL, self.port)
 
         token = self.url_request(url, query_dict, "POST")
 
         if not token or "token" not in token:
             print ("no token: {}".format(token))
         else:
-            # Return the token to the function which called for it
             return token['token']
-
-
-    def checkSSL(self):
-
-        sslURL = "http://{}:{}/arcgis/admin/security/config?f=pjson".format(self.server, self.port)
-        params = {'token': self.token,
-                  'f': 'json'}
-        sslSettings = self.url_request(sslURL, params, 'POST')
-        try:
-            return sslSettings['sslEnabled']
-        except:
-            print("Error getting SSL setting, assuming HTTPS is disabled")
-            return False
 
 
     def url_request(self, in_url, params=None, req_type="GET", headers=None):
@@ -119,12 +128,8 @@ class connectionHelper(object):
     def getServiceList(self, folderList=''):
         ''' Function to get all services
         Requires Admin user/password, as well as server and port (necessary to construct token if one does not exist).
-        If a token exists, you can pass one in for use.
-        Note: Will not return any services in the Utilities or System folder    '''
-
-
-        if self.token is None:
-            self.token = self.gentoken()
+        Note: Will not return any services in the Utilities or System folder
+        '''
 
         services = []
         service_url = "{}/services".format(self.baseURL)
@@ -225,4 +230,4 @@ class MultipartFormdataEncoder(object):
         self.content_type["Content-Length"] = str(len(body.getvalue()))
         return self.content_type, body.getvalue()
 
-b = connectionHelper("","","","")
+b = connectionHelper("arcola", 6080, "admin", "admin")
