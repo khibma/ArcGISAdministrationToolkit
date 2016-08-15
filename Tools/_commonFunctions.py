@@ -6,7 +6,7 @@ import sys
 import codecs
 import uuid
 import mimetypes
-#COMMITME
+
 try:
     import urllib.parse as parse
     from urllib.request import urlopen as urlopen
@@ -45,7 +45,7 @@ class connectionHelper(object):
         self.password = password
 
         self.baseURL = "{pre}://{server}:{port}/arcgis/admin".format(pre=self.prefix, server=self.server, port=self.port)
-        self.token = self.gentoken(server, port, username, password)
+        self.token = self.gentoken(username, password)
 
     def checkSSL(self):
 

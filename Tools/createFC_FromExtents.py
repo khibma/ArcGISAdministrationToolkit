@@ -25,21 +25,21 @@ def makeFC_FromExtents(handler, mapService, outputFC):
     Note: Will not return any services in the Utilities or System folder
     '''
 
-    if "STOPPED" in mapService:
-        arcpy.AddError("Service needs to be running to perform this operation")
+    if "MapServer" not in mapService:
+        arcpy.AddError("This tool only works with a MapService")
         sys.exit()
     mapService = mapService.strip("--[STOPPED]")
     mapService = mapService.strip("--[STARTED]")
-    extentURL = "{}/services/{}".format(handler.baseURL.replace("admin", "rest"), mapService.replace(".", "/"))
-    fullExtent = handler.url_request(extentURL, req_type='GET')
+    
+    extentURL = "{}/services/{}/iteminfo".format(handler.baseURL, mapService)
+    mapSrvInfo = handler.url_request(extentURL, req_type='POST')
 
-    if not 'fullExtent' in fullExtent.keys():
+    if not 'extent' in mapSrvInfo.keys():
         arcpy.AddError("Unable to find Extent detail for '{0}'!".format(extentURL))
-    elif not 'spatialReference' in fullExtent[ 'fullExtent']:
+    elif not 'spatialReference' in mapSrvInfo:
         arcpy.AddError( "Unable to find Spatial Reference for '{0}'!".format( extentURL))
     else:
-        extent = fullExtent['fullExtent']
-
+        extent = mapSrvInfo['extent']
 
     logQuery_url = "{}/logs/query".format(handler.baseURL)
     logFilter = "{'services': ['" + mapService + "']}"
@@ -48,11 +48,12 @@ def makeFC_FromExtents(handler, mapService, outputFC):
 
 
     # Create a featureclass, and open a cursor
-    fc = createFC( outputFC, extent[ "spatialReference"][ "wkid"])
+    fc = createFC( outputFC, mapSrvInfo["spatialReference"])
     cursorFC = arcpy.da.InsertCursor(fc, ["SHAPE@", "EventDate", "Scale", "InvScale", "Width", "Height"])
 
     # Variable to track number of events found for ExportMapImage call
     logEvents = 0
+    
 
     # Array to hold Shape
     shapeArray = arcpy.Array()
