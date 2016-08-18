@@ -38,8 +38,6 @@ def getLog(handler, service, starttime, endtime):
 
 def logToTable(log, table):
 
-    arcpy.AddMessage(log)
-
     fieldTypes = {"type": "TEXT",
                   "message": "TEXT",
                   "time": "TEXT",
