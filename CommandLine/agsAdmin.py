@@ -1,10 +1,13 @@
 '''
-This script makes use of the same functions as found in the Code/AllFunctions.py samples.
+NOTE! This code will only work when complied/executed against Python 2.7.x
+It is NOT 3.x compatible.
+
+This script makes use of the same functions found in the Code/AllFunctions.py samples.
 It has been enhanced with more error trapping and uses command line arguments to run.
 The script can be run as a python script:
 C:\myScripts>c:\python27\python.exe agsAdmin.py myServer 6080 admin admin list
 
-It has also been used to create a stand alone executable (.exe) which you can use on a system without python.
+It has also been used to create a standalone executable (.exe) which you can use on a system without python.
 Call the .exe in the same way you would call the python script (without the call to python.exe first)
 C:\myScripts>agsAdmin.exe myServer 6080 admin admin list
 
@@ -20,38 +23,59 @@ or the ArcGIS Server General : https://geonet.esri.com/community/developers/gis-
 # Required imports
 import json
 import sys
+from urllib2 import urlparse as parse
+from urllib2 import urlopen as urlopen
+from urllib2 import Request as request
+from urllib2 import HTTPError, URLError
+from urllib import urlencode as encode
+unicode = str
+
+import ssl
 try:
-    import urllib.parse as parse
-    from urllib.request import urlopen as urlopen
-    from urllib.request import Request as request
-    from urllib.request import HTTPError, URLError
-    from urllib.parse import urlencode as encode
-# py2
-except ImportError:
-    from urllib2 import urlparse as parse
-    from urllib2 import urlopen as urlopen
-    from urllib2 import Request as request
-    from urllib2 import HTTPError, URLError
-    from urllib import urlencode as encode
-    unicode = str
+    _create_unverified_https_context = ssl._create_unverified_context
+except AttributeError:
+    # Legacy Python that doesn't verify HTTPS certificates by default
+    pass
+else:
+    # Handle target environment that doesn't support HTTPS verification
+    ssl._create_default_https_context = _create_unverified_https_context
 
 
-def gentoken(server, port, adminUser, adminPass, expiration=60):
+port = 6080
+http = 'http'
+
+def gentoken(server, portNum, adminUser, adminPass, expiration=60):
     # Re-usable function to get a token required for Admin changes
+
+
+    sslURL = "http://{}:{}/arcgis/admin/generateToken?f=json".format(server, portNum)
+    redirectURL = urlopen(sslURL).geturl()
+    sslSettings = json.loads(urlopen(redirectURL).read())
+
+    global port
+    port = portNum
+    try:
+        if sslSettings['ssl']['supportsSSL']:
+            port = sslSettings['ssl']['sslPort']
+            global http
+            http = 'https'
+    except:
+        pass
 
     query_dict = {'username':   adminUser,
                   'password':   adminPass,
                   'expiration': str(expiration),
-                  'client':     'requestip'}
+                  'client':     'requestip',
+                  'f':          'json'}
 
     query_string = encode(query_dict)
-    url = "http://{}:{}/arcgis/admin/generateToken?f=json".format(server, port)
+    url = "{}://{}:{}/arcgis/admin/generateToken".format(http, server, port)
 
     try:
         token = json.loads(urlopen(url, query_string).read())
         if "token" not in token or token == None:
             print ("Failed to get token, return message from server:")
-            print (token['messages'])
+            print (token)
             sys.exit()
         else:
             # Return the token to the function which called for it
@@ -63,9 +87,7 @@ def gentoken(server, port, adminUser, adminPass, expiration=60):
         sys.exit()
 
 
-
-
-def stopStartServices(server, port, adminUser, adminPass, stopStart, serviceList, token=None):
+def stopStartServices(server, portNum, adminUser, adminPass, stopStart, serviceList, token=None):
     ''' Function to stop, start or delete a service.
     Requires Admin user/password, as well as server and port (necessary to construct token if one does not exist).
     stopStart = Stop|Start|Delete
@@ -75,20 +97,21 @@ def stopStartServices(server, port, adminUser, adminPass, stopStart, serviceList
 
     # Get and set the token
     if token is None:
-        token = gentoken(server, port, adminUser, adminPass)
+        token = gentoken(server, portNum, adminUser, adminPass)
 
     if serviceList == "all":
         serviceList = getServiceList(server, port, adminUser, adminPass, token)
+        print(" \n")
     else:
         serviceList = [serviceList]
 
 
     # modify the services(s)
     for service in serviceList:
-        #service = parse.quote(service.encode('utf8'))
-        print (service)
-        op_service_url = "http://{}:{}/arcgis/admin/services/{}/{}?token={}&f=json".format(server, port, service, stopStart, token)
-        status = urlopen(op_service_url, ' ').read()
+        op_service_url = "{}://{}:{}/arcgis/admin/services/{}/{}".format(http, server, port, service, stopStart)
+        query = {'token':token,
+                 'f':'json'}
+        status = urlopen(op_service_url, data=encode(query)).read()
 
         if 'success' in status:
             print ("{} successfully performed on {}".format(stopStart, service))
@@ -99,8 +122,7 @@ def stopStartServices(server, port, adminUser, adminPass, stopStart, serviceList
     return
 
 
-
-def getServiceList(server, port, adminUser, adminPass, token=None):
+def getServiceList(server, portNum, adminUser, adminPass, token=None):
     ''' Function to get all services
     Requires Admin user/password, as well as server and port (necessary to construct token if one does not exist).
     If a token exists, you can pass one in for use.
@@ -108,11 +130,11 @@ def getServiceList(server, port, adminUser, adminPass, token=None):
     '''
 
     if token is None:
-        token = gentoken(server, port, adminUser, adminPass)
+        token = gentoken(server, portNum, adminUser, adminPass)
 
     services = []
     folder = ''
-    URL = "http://{}:{}/arcgis/admin/services{}?f=pjson&token={}".format(server, port, folder, token)
+    URL = "{}://{}:{}/arcgis/admin/services{}?f=pjson&token={}".format(http, server, port, folder, token)
 
     try:
         serviceList = json.loads(urlopen(URL).read())
@@ -131,7 +153,7 @@ def getServiceList(server, port, adminUser, adminPass, token=None):
 
     if len(folderList) > 0:
         for folder in folderList:
-            URL = "http://{}:{}/arcgis/admin/services/{}?f=pjson&token={}".format(server, port, folder, token)
+            URL = "{}://{}:{}/arcgis/admin/services/{}?f=pjson&token={}".format(http, server, port, folder, token)
             fList = json.loads(urlopen(URL).read())
 
             for single in fList["services"]:
@@ -139,16 +161,16 @@ def getServiceList(server, port, adminUser, adminPass, token=None):
 
     if len(services) == 0:
         print ("No services found")
+        return []
     else:
-        print ("Services on {}:".format(server))
+        print ("Services / State on {}:".format(server))
         for service in services:
-            statusURL = "http://{}:{}/arcgis/admin/services/{}/status?f=pjson&token={}".format(server, port, service, token)
+            statusURL = "{}://{}:{}/arcgis/admin/services/{}/status?f=pjson&token={}".format(http, server, port, service, token)
             status = json.loads(urlopen(statusURL).read())
-            print ("  {} >  {}".format(status["realTimeState"], service))
+            print ("  {} >  {}".format(service, status["realTimeState"].title()))
 
 
     return services
-
 
 
 if __name__ == "__main__":
