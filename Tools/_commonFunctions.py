@@ -68,7 +68,7 @@ class connectionHelper(object):
                       'password':   adminPass,
                       'expiration': str(expiration),
                       'client':     'requestip',
-                      'f':           'json'}
+                      'f':          'json'}
 
         url = "{}/generateToken".format(self.baseURL, self.port)
 
