@@ -17,7 +17,7 @@ def getFolders(server, port):
     '''        
     
     foldersURL = "http://{}:{}/arcgis/rest/services/?f=pjson".format(server, port)    
-    status = json.loads(urllib2.urlopen(folders, '').read())
+    status = json.loads(urllib2.urlopen(foldersURL, '').read())
         
     folders = status["folders"]
     
