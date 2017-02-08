@@ -412,7 +412,7 @@ class ConnHandler(object):
         if len(jLicense["extensions"]) == 0:
             report += "No available extensions\n"
         else:
-            report += "Available Extenstions........\n"
+            report += "Available Extensions........\n"
             for name in jLicense["extensions"]:
                 report += "extension:  {}\n".format(name["name"])
 
