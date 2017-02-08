@@ -2,65 +2,63 @@ import arcpy, os
 
 
 def doFrequency(inputTable, outputTable, freqFields):
-    
+
     # create the output table and add appropraite fields
     outpath = os.path.dirname(outputTable)
     outname = os.path.basename(outputTable)
 
     arcpy.CreateTable_management(outpath, outname)
-    arcpy.AddField_management(outputTable, "FREQUENCY", "LONG")    
-    
+    arcpy.AddField_management(outputTable, "FREQUENCY", "LONG")
+
     for fields in arcpy.ListFields(inputTable):
-        if fields.name in freqFields:            
+        if fields.name in freqFields:
             name = fields.name
             fType = fields.type
             arcpy.AddField_management(outputTable, name, fType)
-        
-            
+
+
     # do frequency stuff
 
     fCur = ['OID@']
     for f in freqFields.split(';'):
-        fCur.append(f)        
-    
+        fCur.append(f)
+
     arcpy.AddMessage(fCur)
-    
+
     dValues = {}
-    
+
     numFields = len(fCur)
     with arcpy.da.SearchCursor(inputTable, fCur) as cursor:
         for index, row in enumerate(cursor):
             i=1
-            while i <= numFields-1:               
+            while i <= numFields-1:
                 if i == 1:
                     dValues[index] = str(row[i])
                 else:
                     dValues[index] = (dValues[index] + ', ' + str(row[i]))
-                i+=1                     
-    
+                i+=1
+
 
     from collections import Counter
     countedVal = Counter(dValues.itervalues())
-            
-    fCur.append("FREQUENCY")    
-    #arcpy.AddMessage(fCur)
-    
+
+    fCur.append("FREQUENCY")
+
     inCur = arcpy.da.InsertCursor(outputTable, fCur)
-    
+
     for index, inRows in enumerate(countedVal):
-        #arcpy.AddMessage(tuple(inRows.split(',')) + (countedVal[inRows],))        
+        #arcpy.AddMessage(tuple(inRows.split(',')) + (countedVal[inRows],))
         inCur.insertRow((index,) + tuple(inRows.split(',')) + (countedVal[inRows],) )
-    
+
     del inCur
-    
 
 
-if __name__ == "__main__":     
-    
-    # Gather inputs    
-    inputTable = arcpy.GetParameterAsText(0)  or r'C:\Users\kevi5105\Documents\ArcGIS\Default.gdb\ServiceInfoFromLogs2'
-    outputTable = arcpy.GetParameterAsText(1)  or r'in_memory\foooo2'
-    freqFields = arcpy.GetParameterAsText(2) or "methodName;process;elapsed"
-    arcpy.AddMessage(freqFields)
-    
+
+if __name__ == "__main__":
+
+    # Gather inputs
+    inputTable = arcpy.GetParameterAsText(0)
+    outputTable = arcpy.GetParameterAsText(1)
+    freqFields = arcpy.GetParameterAsText(2)
+
     doFrequency(inputTable, outputTable, freqFields)
