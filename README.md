@@ -1,3 +1,5 @@
+2018 - This reprository has been archived and is no longer active. The scripts should continue to work, but this project is no longer being actively maintained.
+
 # ArcGISAdministrationToolkit
 Tools and Code to adminster ArcGIS Server
 
